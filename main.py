@@ -22,7 +22,18 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 from groq import Groq
 groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI()
+
+# Configuração de CORS para permitir que o Frontend (Vite) acesse a API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Em produção, coloque a URL do seu front
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/processar-laudo")
 async def processar_laudo(file: UploadFile = File(...)):
@@ -50,12 +61,11 @@ async def processar_laudo(file: UploadFile = File(...)):
             print(f"DEBUG: Enviando para GROQ: {image_url}")
             completion = groq_client.chat.completions.create(
                 model="meta-llama/llama-4-maverick-17b-128e-instruct", 
-               #model="meta-llama/llama-4-scout-17b-16e-instruct",
                 messages=[
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extraia todos os dados deste laudo médico e retorne APENAS um JSON estruturado. Inclua campos como: nome_paciente, data, tipo_exame e os resultados encontrados."},
+                            {"type": "text", "text": "Extraia todos os dados deste laudo técnico de análise de solo e retorne APENAS um JSON estruturado. Inclua campos como: ph, materia_organica, fosforo, potassio, calcio, magnesio, textura_solo e interpretacao_geral."},
                             {"type": "image_url", "image_url": {"url": image_url}}
                         ]
                     }
@@ -85,3 +95,13 @@ async def processar_laudo(file: UploadFile = File(...)):
         "analise_ia": resultado_ia,
         "db_data": db_response.data
     }
+
+@app.get("/historico/{user_id}")
+async def get_historico(user_id: str):
+    try:
+        # Busca todas as análises de um usuário específico, ordenando pelas mais recentes
+        response = supabase.table("ocr_results").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        return response.data
+    except Exception as e:
+        print(f"ERRO HISTORICO: {str(e)}")
+        return {"erro": str(e)}

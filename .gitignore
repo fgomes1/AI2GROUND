@@ -2,7 +2,7 @@
 venv/
 env/
 .venv/
-
+.node_modules
 # Variáveis de Ambiente (SEGURANÇA!)
 .env
 
