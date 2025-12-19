@@ -65,7 +65,55 @@ async def processar_laudo(file: UploadFile = File(...)):
                     {
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Extraia todos os dados deste laudo técnico de análise de solo e retorne APENAS um JSON estruturado. Inclua campos como: ph, materia_organica, fosforo, potassio, calcio, magnesio, textura_solo e interpretacao_geral."},
+                            {
+                                "type": "text", 
+                                "text": """Você é um especialista em Ciência do Solo e Processamento de Documentos. 
+Sua tarefa é extrair dados técnicos de laudos de análise de solo e retornar ESTRITAMENTE um objeto JSON.
+
+REGRAS OBRIGATÓRIAS:
+1. Extraia apenas valores numéricos para os resultados químicos.
+2. Use o ponto (.) como separador decimal (ex: 4.40 em vez de 4,40).
+3. Se um campo não estiver presente na imagem, preencha com null.
+4. Não inclua nenhuma explicação, texto introdutório ou markdown (como ```json). Retorne apenas o objeto.
+5. Siga exatamente a estrutura de chaves abaixo.
+
+ESTRUTURA ALVO:
+{
+  "metadados": {
+    "numero_amostra": string ou null,
+    "profundidade": string ou null,
+    "data_analise": string ou null
+  },
+  "quimica": {
+    "ph_agua": float ou null,
+    "indice_smp": float ou null,
+    "fosforo_p": float ou null,
+    "potassio_k": float ou null,
+    "calcio_ca": float ou null,
+    "magnesio_mg": float ou null,
+    "enxofre_s": float ou null,
+    "materia_organica": float ou null,
+    "aluminio_al": float ou null,
+    "h_mais_al": float ou null
+  },
+  "micronutrientes": {
+    "zinco_zn": float ou null,
+    "manganes_mn": float ou null,
+    "ferro_fe": float ou null,
+    "cobre_cu": float ou null,
+    "boro_b": float ou null
+  },
+  "calculados": {
+    "soma_bases_sb": float ou null,
+    "ctc_ph7": float ou null,
+    "saturacao_v_percent": float ou null,
+    "saturacao_al_m_percent": float ou null
+  },
+  "fisica": {
+    "argila_percent": float ou null
+  }
+}"""
+                            },
                             {"type": "image_url", "image_url": {"url": image_url}}
                         ]
                     }
