@@ -355,9 +355,9 @@ function ReportDetail({ report, onBack, onDownload }) {
     };
 
     return (
-        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col min-h-screen lg:h-[calc(100vh-80px)]">
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col min-h-screen">
             {/* Header Ações */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 lg:mb-12">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 lg:mb-12 sticky top-0 bg-[#0c0e12]/80 backdrop-blur-xl z-20 py-4 lg:py-6 border-b border-slate-800/30">
                 <button onClick={onBack} className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors font-bold text-lg group">
                     <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" /> Voltar ao Painel
                 </button>
@@ -374,24 +374,24 @@ function ReportDetail({ report, onBack, onDownload }) {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 overflow-visible lg:overflow-hidden pb-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:h-[calc(100vh-180px)] min-h-0 flex-1 lg:pb-6">
                 {/* Coluna Esquerda: Imagem */}
-                <div className="bg-[#151921] border border-slate-800/80 rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl lg:h-full min-h-[400px]">
-                    <div className="p-6 md:p-8 border-b border-slate-800 flex items-center justify-between">
+                <div className="bg-[#151921] border border-slate-800/80 rounded-[2.5rem] overflow-hidden flex flex-col shadow-2xl lg:h-full min-h-[500px]">
+                    <div className="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-900/40">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-green-500/10 rounded-xl">
                                 <ImageIcon className="text-green-500" size={20} />
                             </div>
                             <h3 className="text-white font-black font-['Outfit'] text-lg">Documento Original</h3>
                         </div>
-                        <a href={report.image_url} target="_blank" className="text-slate-500 hover:text-white"><ExternalLink size={20} /></a>
+                        <a href={report.image_url} target="_blank" className="text-slate-500 hover:text-white transition-colors" rel="noreferrer"><ExternalLink size={20} /></a>
                     </div>
-                    <div className="flex-1 overflow-auto bg-slate-900/60 p-6 md:p-10 flex items-center justify-center custom-scrollbar group">
-                        <div className="relative">
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden bg-slate-900/20 p-6 md:p-10 flex flex-col items-center custom-scrollbar">
+                        <div className="relative w-full">
                             <img
                                 src={report.image_url}
                                 alt="Laudo Original"
-                                className="max-w-full h-auto rounded-2xl shadow-2xl transition-transform duration-500 group-hover:scale-[1.02]"
+                                className="w-full h-auto rounded-2xl shadow-2xl"
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none rounded-2xl" />
                         </div>
@@ -399,14 +399,14 @@ function ReportDetail({ report, onBack, onDownload }) {
                 </div>
 
                 {/* Coluna Direita: Formulário */}
-                <div className="bg-[#151921] border border-slate-800/80 rounded-[2.5rem] flex flex-col shadow-2xl lg:h-full">
-                    <div className="p-6 md:p-8 border-b border-slate-800 flex items-center gap-3">
+                <div className="bg-[#151921] border border-slate-800/80 rounded-[2.5rem] flex flex-col shadow-2xl lg:h-full overflow-hidden">
+                    <div className="p-6 border-b border-slate-800 flex items-center gap-3 bg-slate-900/40">
                         <div className="p-2 bg-green-500/10 rounded-xl">
                             <PenLine className="text-green-500" size={20} />
                         </div>
                         <h3 className="text-white font-black font-['Outfit'] text-lg">Edição Técnica</h3>
                     </div>
-                    <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar bg-slate-900/10 text-left">
+                    <div className="flex-1 overflow-y-auto p-6 md:p-10 custom-scrollbar bg-slate-900/5 text-left">
                         <div className="space-y-12 pb-10">
 
                             {/* Seção Metadados */}

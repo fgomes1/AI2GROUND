@@ -5,9 +5,33 @@
 }
 
 body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
   background-color: #0c0e12;
-  color: #e2e8f0;
+  overflow-x: hidden;
   font-family: var(--font-family);
+}
+
+#root {
+  width: 100%;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #334155;
 }
 
 @theme {
