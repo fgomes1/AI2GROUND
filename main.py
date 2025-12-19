@@ -86,6 +86,7 @@ ESTRUTURA ALVO:
   },
   "quimica": {
     "ph_agua": float ou null,
+    "ph_cacl2": float ou null,
     "indice_smp": float ou null,
     "fosforo_p": float ou null,
     "potassio_k": float ou null,
@@ -149,4 +150,14 @@ async def get_historico(user_id: str):
         return response.data
     except Exception as e:
         print(f"ERRO HISTORICO: {str(e)}")
+        return {"erro": str(e)}
+
+@app.put("/atualizar-laudo/{id}")
+async def atualizar_laudo(id: int, data: dict):
+    try:
+        # Atualiza apenas os dados do OCR para o ID específico
+        response = supabase.table("ocr_results").update({"ocr_json": data}).eq("id", id).execute()
+        return {"mensagem": "Laudo atualizado com sucesso!", "data": response.data}
+    except Exception as e:
+        print(f"ERRO AO ATUALIZAR: {str(e)}")
         return {"erro": str(e)}

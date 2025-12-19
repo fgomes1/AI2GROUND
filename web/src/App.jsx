@@ -193,6 +193,7 @@ export default function App() {
                             report={selectedReport}
                             onBack={() => setSelectedReport(null)}
                             onDownload={downloadJson}
+                            onRefreshHistory={fetchHistory}
                         />
                     ) : activeTab === 'dashboard' ? (
                         <DashboardView
@@ -341,8 +342,10 @@ function HistoryView({ history, onSelect, onDownload }) {
     );
 }
 
-function ReportDetail({ report, onBack, onDownload }) {
+function ReportDetail({ report, onBack, onDownload, onRefreshHistory }) {
     const [formData, setFormData] = useState(report.ocr_json || {});
+    const [saving, setSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState(null);
 
     const handleNestedInputChange = (category, field, value) => {
         setFormData(prev => ({
@@ -352,6 +355,23 @@ function ReportDetail({ report, onBack, onDownload }) {
                 [field]: value
             }
         }));
+        setSaveStatus(null); // Limpa status de sucesso ao editar novamente
+    };
+
+    const handleSave = async () => {
+        setSaving(true);
+        setSaveStatus(null);
+        try {
+            await axios.put(`${API_URL}/atualizar-laudo/${report.id}`, formData);
+            setSaveStatus('success');
+            if (onRefreshHistory) onRefreshHistory(); // Atualiza a lista lateral se necessário
+            setTimeout(() => setSaveStatus(null), 3000); // Remove o check de sucesso após 3s
+        } catch (err) {
+            console.error('Erro ao salvar:', err);
+            setSaveStatus('error');
+        } finally {
+            setSaving(false);
+        }
     };
 
     return (
@@ -362,14 +382,27 @@ function ReportDetail({ report, onBack, onDownload }) {
                     <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" /> Voltar ao Painel
                 </button>
                 <div className="flex items-center gap-3">
+                    {saveStatus === 'success' && (
+                        <motion.span initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="text-green-500 text-sm font-bold flex items-center gap-1 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+                            <CheckCircle2 size={16} /> Salvo!
+                        </motion.span>
+                    )}
                     <button
                         onClick={() => onDownload(formData, `laudo_solo_${report.id}`)}
                         className="flex items-center gap-2 px-5 py-3 bg-slate-800 rounded-[1.25rem] text-sm font-black text-slate-300 hover:bg-slate-700 transition-all shadow-xl"
                     >
                         <Download size={18} /> Exportar
                     </button>
-                    <button className="flex items-center gap-2 px-6 py-3 bg-green-600 rounded-[1.25rem] text-sm font-black text-white hover:bg-green-500 shadow-2xl shadow-green-600/30 transition-all">
-                        <Save size={18} /> Salvar Dados
+                    <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className={cn(
+                            "flex items-center gap-2 px-6 py-3 rounded-[1.25rem] text-sm font-black text-white shadow-2xl transition-all",
+                            saving ? "bg-slate-700 cursor-not-allowed" : "bg-green-600 hover:bg-green-500 shadow-green-600/30"
+                        )}
+                    >
+                        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                        {saving ? 'Salvando...' : 'Salvar Dados'}
                     </button>
                 </div>
             </div>
@@ -432,6 +465,7 @@ function ReportDetail({ report, onBack, onDownload }) {
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                     <FormField label="pH Água" value={formData.quimica?.ph_agua} onChange={(v) => handleNestedInputChange('quimica', 'ph_agua', v)} />
+                                    <FormField label="pH CaCl2" value={formData.quimica?.ph_cacl2} onChange={(v) => handleNestedInputChange('quimica', 'ph_cacl2', v)} />
                                     <FormField label="Índice SMP" value={formData.quimica?.indice_smp} onChange={(v) => handleNestedInputChange('quimica', 'indice_smp', v)} />
                                     <FormField label="Fósforo (P)" value={formData.quimica?.fosforo_p} onChange={(v) => handleNestedInputChange('quimica', 'fosforo_p', v)} />
                                     <FormField label="Potássio (K)" value={formData.quimica?.potassio_k} onChange={(v) => handleNestedInputChange('quimica', 'potassio_k', v)} />
