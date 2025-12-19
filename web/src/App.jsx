@@ -348,14 +348,31 @@ function ReportDetail({ report, onBack, onDownload, onRefreshHistory }) {
     const [saveStatus, setSaveStatus] = useState(null);
 
     const handleNestedInputChange = (category, field, value) => {
+        let sanitizedValue = value;
+
+        // Se for vazio, vira null
+        if (value === '' || value === null || value === undefined) {
+            sanitizedValue = null;
+        } else if (category !== 'metadados') {
+            // Para categorias técnicas, tentamos converter para float
+            // Substitui vírgula por ponto para garantir a conversão correta
+            const normalizedValue = value.toString().replace(',', '.');
+            const parsed = parseFloat(normalizedValue);
+
+            // Se for um número válido, salvamos como float
+            if (!isNaN(parsed) && isFinite(parsed)) {
+                sanitizedValue = parsed;
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             [category]: {
                 ...prev[category],
-                [field]: value
+                [field]: sanitizedValue
             }
         }));
-        setSaveStatus(null); // Limpa status de sucesso ao editar novamente
+        setSaveStatus(null);
     };
 
     const handleSave = async () => {
