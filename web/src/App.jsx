@@ -473,17 +473,6 @@ function ReportDetail({ report, onBack, onDownload }) {
                                 </div>
                             </section>
 
-                            {/* Seção Física */}
-                            <section>
-                                <div className="flex items-center gap-2 mb-6 border-l-4 border-orange-500 pl-4">
-                                    <Droplets size={18} className="text-orange-500" />
-                                    <h4 className="text-white font-bold uppercase tracking-widest text-sm">Física do Solo</h4>
-                                </div>
-                                <div className="grid grid-cols-1">
-                                    <FormField label="Teor de Argila (%)" value={formData.fisica?.argila_percent} onChange={(v) => handleNestedInputChange('fisica', 'argila_percent', v)} />
-                                </div>
-                            </section>
-
                         </div>
                     </div>
                 </div>

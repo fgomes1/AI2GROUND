@@ -108,9 +108,6 @@ ESTRUTURA ALVO:
     "ctc_ph7": float ou null,
     "saturacao_v_percent": float ou null,
     "saturacao_al_m_percent": float ou null
-  },
-  "fisica": {
-    "argila_percent": float ou null
   }
 }"""
                             },
