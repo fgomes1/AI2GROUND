@@ -10,17 +10,13 @@ print(f"DEBUG: URL encontrada: {os.getenv('SUPABASE_URL')}")
 # Pegar variáveis de ambiente
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("As variáveis SUPABASE_URL e SUPABASE_KEY são obrigatórias no arquivo .env")
 
 # Conexão com Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
-
-# Inicializar Groq
-from groq import Groq
-groq_client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -53,21 +49,16 @@ async def processar_laudo(file: UploadFile = File(...)):
     # 2. Gerar a URL pública da imagem
     image_url = supabase.storage.from_("laudos").get_public_url(file_path)
 
-    # 3. Enviar para a GROQ para OCR
+    # 3. Enviar para OpenRouter para OCR com Llama Vision
     resultado_ia = {"status": "ia_nao_configurada"}
     
-    if groq_client:
+    if OPENROUTER_API_KEY:
         try:
-            print(f"DEBUG: Enviando para GROQ: {image_url}")
-            completion = groq_client.chat.completions.create(
-                model="meta-llama/llama-4-maverick-17b-128e-instruct", 
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "text", 
-                                "text": """Você é um especialista em Ciência do Solo e Processamento de Documentos. 
+            print(f"DEBUG: Enviando para OpenRouter: {image_url}")
+            import httpx
+            import json
+            
+            prompt_texto = """Você é um especialista em Ciência do Solo e Processamento de Documentos. 
 Sua tarefa é extrair dados técnicos de laudos de análise de solo e retornar ESTRITAMENTE um objeto JSON.
 
 REGRAS OBRIGATÓRIAS:
@@ -111,19 +102,65 @@ ESTRUTURA ALVO:
     "saturacao_al_m_percent": float ou null
   }
 }"""
-                            },
+
+            payload = {
+                "model": "meta-llama/llama-3.2-11b-vision-instruct",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a JSON-only API. You must ALWAYS respond with a single valid JSON object. No explanations, no markdown, no extra text. Just the raw JSON object."
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt_texto},
                             {"type": "image_url", "image_url": {"url": image_url}}
                         ]
                     }
                 ],
-                response_format={"type": "json_object"},
-                temperature=0.0
-            )
-            # A Groq com json_object já tenta retornar um JSON válido
-            import json
-            resultado_ia = json.loads(completion.choices[0].message.content)
+                "temperature": 0.0,
+                "response_format": {"type": "json_object"}
+            }
+
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "http://localhost:8000",
+                "X-Title": "AI2GROUND"
+            }
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    headers=headers,
+                    json=payload
+                )
+                
+            resp.raise_for_status()
+            data = resp.json()
+            
+            if "choices" in data and len(data["choices"]) > 0:
+                content = data["choices"][0]["message"]["content"]
+                print(f"DEBUG: Resposta bruta da API:\n{content}")
+
+                # Extrair o primeiro bloco JSON da resposta usando regex
+                # (funciona mesmo se o modelo adicionar texto ou markdown ao redor)
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', content)
+                if json_match:
+                    try:
+                        resultado_ia = json.loads(json_match.group())
+                    except json.JSONDecodeError as je:
+                        print(f"ERRO: JSON encontrado mas inválido: {je}")
+                        resultado_ia = {"erro": "JSON malformado na resposta da IA", "texto_bruto": content}
+                else:
+                    print(f"ERRO: Nenhum JSON encontrado na resposta:\n{content}")
+                    resultado_ia = {"erro": "A IA não retornou um JSON válido", "texto_bruto": content}
+            else:
+                resultado_ia = {"erro": "Resposta inesperada da API", "detalhes": data}
+
         except Exception as e:
-            print(f"ERRO GROQ: {str(e)}")
+            print(f"ERRO OPENROUTER: {str(e)}")
             resultado_ia = {"erro": str(e)}
 
     # 4. Salvar o registro no Banco de Dados
@@ -153,7 +190,7 @@ async def get_historico(user_id: str):
         return {"erro": str(e)}
 
 @app.put("/atualizar-laudo/{id}")
-async def atualizar_laudo(id: int, data: dict):
+async def atualizar_laudo(id: str, data: dict):
     try:
         # Atualiza apenas os dados do OCR para o ID específico
         response = supabase.table("ocr_results").update({"ocr_json": data}).eq("id", id).execute()
