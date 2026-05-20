@@ -10,7 +10,7 @@ print(f"DEBUG: URL encontrada: {os.getenv('SUPABASE_URL')}")
 # Pegar variáveis de ambiente
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError("As variáveis SUPABASE_URL e SUPABASE_KEY são obrigatórias no arquivo .env")
@@ -49,12 +49,12 @@ async def processar_laudo(file: UploadFile = File(...)):
     # 2. Gerar a URL pública da imagem
     image_url = supabase.storage.from_("laudos").get_public_url(file_path)
 
-    # 3. Enviar para OpenRouter para OCR com Llama Vision
+    # 3. Enviar para Groq para OCR com Llama 4 Scout
     resultado_ia = {"status": "ia_nao_configurada"}
     
-    if OPENROUTER_API_KEY:
+    if GROQ_API_KEY:
         try:
-            print(f"DEBUG: Enviando para OpenRouter: {image_url}")
+            print(f"DEBUG: Enviando para Groq: {image_url}")
             import httpx
             import json
             
@@ -103,9 +103,12 @@ ESTRUTURA ALVO:
   }
 }"""
 
-            payload = {
-                "model": "meta-llama/llama-3.2-11b-vision-instruct",
-                "messages": [
+            from groq import AsyncGroq
+            groq_client = AsyncGroq(api_key=GROQ_API_KEY)
+            
+            completion = await groq_client.chat.completions.create(
+                model="meta-llama/llama-4-scout-17b-16e-instruct",
+                messages=[
                     {
                         "role": "system",
                         "content": "You are a JSON-only API. You must ALWAYS respond with a single valid JSON object. No explanations, no markdown, no extra text. Just the raw JSON object."
@@ -118,29 +121,12 @@ ESTRUTURA ALVO:
                         ]
                     }
                 ],
-                "temperature": 0.0,
-                "response_format": {"type": "json_object"}
-            }
-
-            headers = {
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": "http://localhost:8000",
-                "X-Title": "AI2GROUND"
-            }
-
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    headers=headers,
-                    json=payload
-                )
-                
-            resp.raise_for_status()
-            data = resp.json()
+                temperature=0.0,
+                response_format={"type": "json_object"}
+            )
             
-            if "choices" in data and len(data["choices"]) > 0:
-                content = data["choices"][0]["message"]["content"]
+            if completion.choices and len(completion.choices) > 0:
+                content = completion.choices[0].message.content
                 print(f"DEBUG: Resposta bruta da API:\n{content}")
 
                 # Extrair o primeiro bloco JSON da resposta usando regex
