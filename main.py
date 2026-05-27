@@ -22,6 +22,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+# Inicializa o conversor do Docling globalmente para aproveitar cache de modelos de IA
+try:
+    from docling.document_converter import DocumentConverter
+    docling_converter = DocumentConverter()
+except ImportError:
+    docling_converter = None
+    print("AVISO: Docling não está instalado ou falhou ao inicializar.")
+
 # Configuração de CORS para permitir que o Frontend (Vite) acesse a API
 app.add_middleware(
     CORSMiddleware,
@@ -34,6 +42,8 @@ app.add_middleware(
 @app.post("/processar-laudo")
 async def processar_laudo(file: UploadFile = File(...)):
     import uuid
+    import time
+    
     # 1. Upload para o Supabase Storage (com nome único para evitar erro de duplicata)
     file_id = str(uuid.uuid4())
     file_extension = file.filename.split(".")[-1]
@@ -48,6 +58,19 @@ async def processar_laudo(file: UploadFile = File(...)):
 
     # 2. Gerar a URL pública da imagem
     image_url = supabase.storage.from_("laudos").get_public_url(file_path)
+
+    # Executar OCR Especializado com Docling usando a URL do Supabase
+    docling_text = ""
+    if docling_converter:
+        try:
+            print(f"DEBUG: Processando imagem no Docling (isso pode levar alguns segundos)...")
+            start_docling = time.time()
+            result = docling_converter.convert(image_url)
+            docling_text = result.document.export_to_markdown()
+            tempo_docling = round(time.time() - start_docling, 2)
+            print(f"DEBUG: Extração do Docling concluída com sucesso em {tempo_docling}s.")
+        except Exception as e:
+            print(f"ERRO DOCLING: {str(e)}")
 
     # 3. Enviar para Groq para OCR com Llama 4 Scout
     resultado_ia = {"status": "ia_nao_configurada"}
@@ -102,10 +125,14 @@ ESTRUTURA ALVO:
     "saturacao_al_m_percent": float ou null
   }
 }"""
+            
+            if docling_text:
+                prompt_texto += f"\n\n=== TEXTO EXTRAÍDO DO DOCLING ===\n{docling_text}\n=================================\nConsidere os dados acima para preencher o JSON com alta precisão, pois eles vêm de um OCR especializado. A imagem serve para validação visual adicional."
 
             from groq import AsyncGroq
             groq_client = AsyncGroq(api_key=GROQ_API_KEY)
             
+            start_llm = time.time()
             completion = await groq_client.chat.completions.create(
                 model="meta-llama/llama-4-scout-17b-16e-instruct",
                 messages=[
@@ -124,6 +151,15 @@ ESTRUTURA ALVO:
                 temperature=0.0,
                 response_format={"type": "json_object"}
             )
+            tempo_llm = round(time.time() - start_llm, 2)
+            
+            token_usage = {}
+            if hasattr(completion, "usage") and completion.usage:
+                token_usage = {
+                    "prompt_tokens": completion.usage.prompt_tokens,
+                    "completion_tokens": completion.usage.completion_tokens,
+                    "total_tokens": completion.usage.total_tokens
+                }
             
             if completion.choices and len(completion.choices) > 0:
                 content = completion.choices[0].message.content
@@ -158,9 +194,46 @@ ESTRUTURA ALVO:
     
     db_response = supabase.table("ocr_results").insert(data).execute()
 
+    # 5. Salvar métricas em CSV local para o TCC
+    import os
+    import csv
+    from datetime import datetime
+
+    csv_filename = "metricas_experimento.csv"
+    file_exists = os.path.isfile(csv_filename)
+    
+    t_doc = tempo_docling if 'tempo_docling' in locals() else 0.0
+    t_llm = tempo_llm if 'tempo_llm' in locals() else 0.0
+    
+    p_tokens = token_usage.get("prompt_tokens", 0) if 'token_usage' in locals() else 0
+    c_tokens = token_usage.get("completion_tokens", 0) if 'token_usage' in locals() else 0
+    tot_tokens = token_usage.get("total_tokens", 0) if 'token_usage' in locals() else 0
+
+    with open(csv_filename, mode='a', newline='', encoding='utf-8') as csv_file:
+        fieldnames = ['data_hora', 'id_arquivo', 'tempo_docling_segundos', 'tempo_llm_segundos', 'prompt_tokens', 'completion_tokens', 'total_tokens']
+        writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+        
+        if not file_exists:
+            writer.writeheader()  # Escreve o cabeçalho se o arquivo for novo
+            
+        writer.writerow({
+            'data_hora': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'id_arquivo': file_id,
+            'tempo_docling_segundos': t_doc,
+            'tempo_llm_segundos': t_llm,
+            'prompt_tokens': p_tokens,
+            'completion_tokens': c_tokens,
+            'total_tokens': tot_tokens
+        })
+
     return {
         "mensagem": "Laudo processado com Groq!",
         "url": image_url,
+        "metricas": {
+            "tempo_docling_segundos": tempo_docling if 'tempo_docling' in locals() else None,
+            "tempo_llm_segundos": tempo_llm if 'tempo_llm' in locals() else None,
+            "uso_tokens": token_usage if 'token_usage' in locals() else None
+        },
         "analise_ia": resultado_ia,
         "db_data": db_response.data
     }

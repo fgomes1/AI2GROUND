@@ -2,8 +2,12 @@
 venv/
 env/
 .venv/
-.node_modules
-# Variáveis de Ambiente (SEGURANÇA!)
+
+# Node.js
+node_modules/
+web/node_modules/
+
+# Variáveis de Ambiente (SEGURANÇA! Nunca suba o .env real)
 .env
 
 # Cache do Python
@@ -11,6 +15,20 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# IDEs (Opcional, mas recomendado)
+# IDEs
 .vscode/
 .idea/
+
+# Dataset TCC (imagens são grandes demais para o git)
+# Use um link para o Google Drive ou similar no README
+dataset_tcc/
+
+# Arquivos gerados automaticamente pelos scripts
+# (podem ser regerados rodando avaliador_qualidade.py e gerar_graficos_tcc.py)
+qualidade_experimento.csv
+metricas_experimento.csv
+graficos_tcc/
+
+# Build do frontend
+web/dist/
+web/.vite/
