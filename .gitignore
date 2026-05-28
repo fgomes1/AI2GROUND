@@ -14,3 +14,9 @@ __pycache__/
 # IDEs (Opcional, mas recomendado)
 .vscode/
 .idea/
+
+# Arquivos de experimentos e datasets
+dataset_tcc/
+graficos_tcc/
+metricas_experimento.csv
+qualidade_experimento.csv
